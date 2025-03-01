@@ -11,7 +11,7 @@
 NS_PROTOCOL_REQUIRES_EXPLICIT_IMPLEMENTATION
 @protocol XMPReaderProtocol <NSObject>
 @property (nonatomic, assign, readonly) unsigned int XMPDefaultOpenFlags;
-- (BOOL)openFile:(NSURL *)filePath;
+- (BOOL)openFile:(NSString *)filePath;
 - (void)closeFile;
 @end
 
