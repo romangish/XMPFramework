@@ -22,15 +22,14 @@ try { success = $meta.$accessor($property.URI.UTF8String, $key.UTF8String, &prop
 success ? propValue : $nullifier; })
 
 @interface XMPReader ()
-@property (nonatomic, strong, readwrite) NSURL *filePath;
+@property (nonatomic, strong, readwrite) NSString *filePath;
 @end
 
 @implementation XMPReader
 
 #pragma mark - Dealloc
 - (void)dealloc {
-  // Terminate instances if the fileURL is valid
-  if (self.filePath.isFileURL) {
+  if (self.filePath.length > 0) {
     SXMPFiles::Terminate();
     SXMPMeta::Terminate();
   }
@@ -43,35 +42,43 @@ success ? propValue : $nullifier; })
 
 #pragma mark - Public Getters
 - (NSData *)data {
-  return [[NSFileManager defaultManager] contentsAtPath:self.filePath.path];
+  return [[NSFileManager defaultManager] contentsAtPath:self.filePath];
 }
 
 #pragma mark - Setters
-- (void)setFilePath:(NSURL *)filePath {
-  // Open the file
+- (void)setFilePath:(NSString *)filePath {
   _filePath = [self openFile:filePath] ? [filePath copy] : nil;
-  
-  // Close the file immediately if we're only attempting to read it, as there's no need to keep it open
-  if (self.XMPDefaultOpenFlags & kXMPFiles_OpenForRead) { [self closeFile]; }
+
+  if (self.XMPDefaultOpenFlags & kXMPFiles_OpenForRead) {
+    [self closeFile];
+  }
 }
 
 #pragma mark - Designated Initializer(s)
-- (instancetype)initWithFilePath:(NSURL *)filePath {
-  BOOL initialized = filePath.isFileURL ? SXMPMeta::Initialize() && SXMPFiles::Initialize(kXMP_NoOptions) : NO;
+- (instancetype)initWithFilePath:(NSString *)filePath {
+  BOOL initialized = (filePath.length > 0) ? SXMPMeta::Initialize() && SXMPFiles::Initialize(kXMP_NoOptions) : NO;
   if (initialized && (self = [super init])) {
     self.filePath = filePath;
   }
   return initialized ? self : nil;
 }
 - (instancetype)initWithData:(NSData *)data {
-  NSURL *filePath = nil;
+  NSString *filePath = nil;
   BOOL validData = data.length > 0, writeSuccess = NO;
+  
   if (validData) {
-    filePath = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"XMPFramework_tmp_%.0f.innerTempXMP", [[NSDate date] timeIntervalSince1970]]]];
+    filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:
+                [NSString stringWithFormat:@"XMPFramework_tmp_%.0f.innerTempXMP",
+                 [[NSDate date] timeIntervalSince1970]]];
+    
     NSError *error = nil;
-    writeSuccess = [data writeToURL:filePath options:NSDataWritingAtomic error:&error];
-    if (error) { NSLog(@"Error: %@", error); }
+    writeSuccess = [data writeToFile:filePath options:NSDataWritingAtomic error:&error];
+    
+    if (error) {
+      NSLog(@"Error: %@", error);
+    }
   }
+  
   return writeSuccess ? [self initWithFilePath:filePath] : nil;
 }
 
@@ -131,31 +138,34 @@ success ? propValue : $nullifier; })
 }
 
 #pragma mark - Private Methods
-- (BOOL)openFile:(NSURL *)filePath {
+- (BOOL)openFile:(NSString *)filePath {
   BOOL openSuccessful = NO;
-  if (filePath) {
+  
+  if (filePath.length > 0) {
     SXMPFiles XMPFile;
     SXMPMeta meta;
+
+    openSuccessful = XMPFile.OpenFile(filePath.UTF8String, kXMP_UnknownFile,
+                                      self.XMPDefaultOpenFlags | kXMPFiles_OpenUseSmartHandler);
     
-    // First, try to open the file with read only and a smart handler
-    openSuccessful = XMPFile.OpenFile(filePath.path.UTF8String, kXMP_UnknownFile, self.XMPDefaultOpenFlags | kXMPFiles_OpenUseSmartHandler);
-    
-    // If we failed to open the file, then try opening with packet scanning
-    if (openSuccessful == NO) { openSuccessful = XMPFile.OpenFile(filePath.path.UTF8String, kXMP_UnknownFile, self.XMPDefaultOpenFlags | kXMPFiles_OpenUsePacketScanning); }
-    
-    // If we opened it successfully, get the XMP data. Else, print the path for the file that failed to open
+    if (!openSuccessful) {
+      openSuccessful = XMPFile.OpenFile(filePath.UTF8String, kXMP_UnknownFile,
+                                        self.XMPDefaultOpenFlags | kXMPFiles_OpenUsePacketScanning);
+    }
+
     if (openSuccessful) {
       openSuccessful = XMPFile.GetXMP(&meta);
-    }else{
-      NSLog(@"Unable to open file for path: %@", filePath.path);
+    } else {
+      NSLog(@"Unable to open file for path: %@", filePath);
     }
-    
-    // Copy over variables if we opened the file successfully
+
     _XMPFile = openSuccessful ? XMPFile : "";
     _metaData = openSuccessful ? meta : NULL;
   }
+
   return openSuccessful;
 }
+
 - (void)closeFile {
   _XMPFile.CloseFile();
 }

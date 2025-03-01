@@ -20,7 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
  @param filePath The path to the file.
  @return Returns a valid instance if the file could be opened.
  */
-- (nullable instancetype)initWithFilePath:(NSURL *)filePath NS_DESIGNATED_INITIALIZER;
+- (nullable instancetype)initWithFilePath:(NSString *)filePath NS_DESIGNATED_INITIALIZER;
 
 /** Equivalent to calling saving the data to a temporary location and calling `initWithFilePath:`. */
 - (nullable instancetype)initWithData:(NSData *)data;
@@ -57,7 +57,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonnull, nonatomic, copy, readonly) NSData *data;
 
 /** A reference to the file that we initialized with. If the `initWithData:` initializer was used, this will point to a temporary file. */
-@property (nonnull, nonatomic, strong, readonly) NSURL *filePath;
+@property (nonnull, nonatomic, strong, readonly) NSString *filePath;
 
 @end
 NS_ASSUME_NONNULL_END
